@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title></title>
+
+    <style>
+      html,
+      body {
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      #canvas {
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas"></canvas>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+
+    <script>
+      const canvas = document.getElementById("canvas");
+      const engine = new BABYLON.Engine(canvas, true);
+
+      const scene = (() => {
+        const scene = new BABYLON.Scene(engine);
+        scene.clearColor = new BABYLON.Color3(0.5, 0.8, 0.5);
+        const gl = new BABYLON.GlowLayer("glow", scene);
+
+        const camera = new BABYLON.FollowCamera(
+          "MainCamera",
+          new BABYLON.Vector3(0, 0, -3),
+          scene
+        );
+
+        const light = new BABYLON.HemisphericLight(
+          "light",
+          new BABYLON.Vector3(0, 1, 0),
+          scene
+        );
+
+        const sphere = BABYLON.MeshBuilder.CreateSphere(
+          "sphere",
+          { diameter: 0.75 },
+          scene
+        );
+        const sphereMaterial = new BABYLON.StandardMaterial(
+          "sphereMaterial",
+          scene
+        );
+        sphereMaterial.emissiveColor = new BABYLON.Color3(0, 0.5, 0.5);
+        sphere.material = sphereMaterial;
+
+        const box = BABYLON.MeshBuilder.CreateBox("box", {}, scene);
+        const boxMaterial = new BABYLON.StandardMaterial("boxMaterial", scene);
+        boxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+        boxMaterial.emissiveColor = BABYLON.Color3.White();
+        boxMaterial.specularPower = 64;
+        boxMaterial.alpha = 0;
+
+        // Fresnel
+        boxMaterial.emissiveFresnelParameters = new BABYLON.FresnelParameters();
+        boxMaterial.emissiveFresnelParameters.bias = 0.5;
+        boxMaterial.emissiveFresnelParameters.leftColor =
+          BABYLON.Color3.White();
+        boxMaterial.emissiveFresnelParameters.rightColor =
+          BABYLON.Color3.Black();
+
+        boxMaterial.opacityFresnelParameters = new BABYLON.FresnelParameters();
+        boxMaterial.opacityFresnelParameters.power = 1;
+        boxMaterial.opacityFresnelParameters.leftColor = BABYLON.Color3.White();
+        boxMaterial.opacityFresnelParameters.rightColor =
+          BABYLON.Color3.Black();
+        box.material = boxMaterial;
+
+        let currentAnim = null;
+        let targetTransform = {
+          position: new BABYLON.Vector3(0, 0, 0),
+          rotation: new BABYLON.Vector3(0, 0, 0),
+        };
+
+        const execAnim = () => {
+          if (currentAnim) currentAnim.stop();
+
+          const easingFunction = new BABYLON.BezierCurveEase(
+            0.41,
+            -0.07,
+            0.1,
+            1.16
+          );
+
+          const currentRotationAnimSetting = new BABYLON.Animation(
+            "rotationAnim",
+            "rotation",
+            15,
+            BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+            BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+          );
+          currentRotationAnimSetting.setEasingFunction(easingFunction);
+          const rotationKeys = [
+            {
+              frame: 0,
+              value: box.rotation,
+            },
+            {
+              frame: 15,
+              value: targetTransform.rotation,
+            },
+          ];
+          currentRotationAnimSetting.setKeys(rotationKeys);
+
+          const currentPositionAnimSetting = new BABYLON.Animation(
+            "positionAnim",
+            "position",
+            15,
+            BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+            BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+          );
+          currentPositionAnimSetting.setEasingFunction(easingFunction);
+          const positionKeys = [
+            {
+              frame: 0,
+              value: box.position,
+            },
+            {
+              frame: 7,
+              value: targetTransform.position,
+            },
+            {
+              frame: 15,
+              value: new BABYLON.Vector3(0, 0, 0),
+            },
+          ];
+          currentPositionAnimSetting.setKeys(positionKeys);
+
+          box.animations = [];
+          box.animations.push(currentRotationAnimSetting);
+          box.animations.push(currentPositionAnimSetting);
+
+          currentAnim = scene.beginAnimation(box, 0, 15, false);
+        };
+
+        setInterval(() => {
+          targetTransform.rotation = new BABYLON.Vector3(
+            Math.random() * 2 - 1,
+            Math.random() * 2 - 1,
+            Math.random() * 2 - 1
+          );
+          execAnim();
+        }, 1000);
+
+        box.actionManager = new BABYLON.ActionManager(scene);
+        box.actionManager.registerAction(
+          new BABYLON.ExecuteCodeAction(
+            BABYLON.ActionManager.OnPointerOverTrigger,
+            (ev) => {
+              scene.hoverCursor = "pointer";
+              console.log("hover");
+              targetTransform.position = new BABYLON.Vector3(0, 0, -1);
+
+              setTimeout(() => {
+                targetTransform.position = new BABYLON.Vector3(0, 0, 0);
+              }, 1000);
+            }
+          )
+        );
+
+        return scene;
+      })();
+
+      engine.runRenderLoop(function () {
+        scene.render();
+      });
+
+      window.addEventListener("resize", function () {
+        engine.resize();
+      });
+    </script>
+  </body>
+</html>
