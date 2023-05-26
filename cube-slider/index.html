@@ -5,6 +5,10 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title></title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.css"
+    />
 
     <style>
       html,
@@ -20,17 +24,51 @@
         height: 100%;
         touch-action: none;
       }
+      .swiper {
+        position: fixed;
+        top: 0;
+        width: 100vw;
+        height: 100vh;
+      }
+      .swiper-slide {
+        width: 1058px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 70px;
+        font-weight: bold;
+      }
     </style>
   </head>
   <body>
     <canvas id="canvas"></canvas>
+    <div class="swiper">
+      <!-- Additional required wrapper -->
+      <div class="swiper-wrapper">
+        <!-- Slides -->
+        <div class="swiper-slide">Slide 1</div>
+        <div class="swiper-slide">Slide 2</div>
+        <div class="swiper-slide">Slide 3</div>
+        ...
+      </div>
+      <!-- If we need pagination -->
+      <div class="swiper-pagination"></div>
+
+      <!-- If we need navigation buttons -->
+      <div class="swiper-button-prev"></div>
+      <div class="swiper-button-next"></div>
+
+      <!-- If we need scrollbar -->
+      <div class="swiper-scrollbar"></div>
+    </div>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/swiper@9/swiper-bundle.min.js"></script>
 
     <script>
       const canvas = document.getElementById("canvas");
       const engine = new BABYLON.Engine(canvas, true);
 
-      const scene = (() => {
+      const core = (() => {
         const scene = new BABYLON.Scene(engine);
         scene.clearColor = new BABYLON.Color3(0.5, 0.8, 0.5);
         const gl = new BABYLON.GlowLayer("glow", scene);
@@ -47,26 +85,16 @@
           scene
         );
 
-        const sphere = BABYLON.MeshBuilder.CreateSphere(
-          "sphere",
-          { diameter: 0.75 },
-          scene
-        );
-        const sphereMaterial = new BABYLON.StandardMaterial(
-          "sphereMaterial",
-          scene
-        );
-        sphereMaterial.emissiveColor = new BABYLON.Color3(0, 0.5, 0.5);
-        sphere.material = sphereMaterial;
-
+        /**
+         * キューブのセットアップ
+         */
         const box = BABYLON.MeshBuilder.CreateBox("box", {}, scene);
         const boxMaterial = new BABYLON.StandardMaterial("boxMaterial", scene);
-        boxMaterial.diffuseColor = new BABYLON.Color3(0, 0, 0);
+        boxMaterial.diffuseColor = BABYLON.Color3.Black();
         boxMaterial.emissiveColor = BABYLON.Color3.White();
         boxMaterial.specularPower = 64;
         boxMaterial.alpha = 0;
 
-        // Fresnel
         boxMaterial.emissiveFresnelParameters = new BABYLON.FresnelParameters();
         boxMaterial.emissiveFresnelParameters.bias = 0.5;
         boxMaterial.emissiveFresnelParameters.leftColor =
@@ -75,7 +103,7 @@
           BABYLON.Color3.Black();
 
         boxMaterial.opacityFresnelParameters = new BABYLON.FresnelParameters();
-        boxMaterial.opacityFresnelParameters.power = 1;
+        boxMaterial.opacityFresnelParameters.power = 2;
         boxMaterial.opacityFresnelParameters.leftColor = BABYLON.Color3.White();
         boxMaterial.opacityFresnelParameters.rightColor =
           BABYLON.Color3.Black();
@@ -86,10 +114,88 @@
           position: new BABYLON.Vector3(0, 0, 0),
           rotation: new BABYLON.Vector3(0, 0, 0),
         };
+        let timer = null;
 
-        const execAnim = () => {
+        const randomAnim = () => {
           if (currentAnim) currentAnim.stop();
+          if (timer) clearTimeout(timer);
 
+          const _anim = () => {
+            if (currentAnim) currentAnim.stop();
+
+            targetTransform.rotation = new BABYLON.Vector3(
+              Math.random() * 2 - 1,
+              Math.random() * 2 - 1,
+              Math.random() * 2 - 1
+            );
+
+            const easingFunction = new BABYLON.BezierCurveEase(
+              0.41,
+              -0.07,
+              0.1,
+              1.16
+            );
+
+            const currentRotationAnimSetting = new BABYLON.Animation(
+              "rotationAnim",
+              "rotation",
+              15,
+              BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+              BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+            );
+            currentRotationAnimSetting.setEasingFunction(easingFunction);
+            const rotationKeys = [
+              {
+                frame: 0,
+                value: box.rotation,
+              },
+              {
+                frame: 15,
+                value: targetTransform.rotation,
+              },
+            ];
+            currentRotationAnimSetting.setKeys(rotationKeys);
+
+            const currentPositionAnimSetting = new BABYLON.Animation(
+              "positionAnim",
+              "position",
+              15,
+              BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
+              BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
+            );
+            currentPositionAnimSetting.setEasingFunction(easingFunction);
+            const positionKeys = [
+              {
+                frame: 0,
+                value: box.position,
+              },
+              {
+                frame: 7,
+                value: targetTransform.position,
+              },
+              {
+                frame: 15,
+                value: new BABYLON.Vector3(0, 0, 0),
+              },
+            ];
+            currentPositionAnimSetting.setKeys(positionKeys);
+
+            box.animations = [];
+            box.animations.push(currentRotationAnimSetting);
+            box.animations.push(currentPositionAnimSetting);
+
+            currentAnim = scene.beginAnimation(box, 0, 15, false);
+          };
+
+          _anim();
+          timer = setInterval(_anim, 1000);
+        };
+
+        const spinAnim = (isLeft) => {
+          if (currentAnim) currentAnim.stop();
+          if (timer) clearTimeout(timer);
+
+          console.log("aaaa");
           const easingFunction = new BABYLON.BezierCurveEase(
             0.41,
             -0.07,
@@ -100,7 +206,7 @@
           const currentRotationAnimSetting = new BABYLON.Animation(
             "rotationAnim",
             "rotation",
-            15,
+            100,
             BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
             BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
           );
@@ -111,8 +217,16 @@
               value: box.rotation,
             },
             {
-              frame: 15,
-              value: targetTransform.rotation,
+              frame: 50,
+              value: new BABYLON.Vector3(
+                (Math.random() * 2 - 1) * 0.2,
+                isLeft ? 1.5 * Math.PI : -1.5 * Math.PI,
+                (Math.random() * 2 - 1) * 0.2
+              ),
+            },
+            {
+              frame: 100,
+              value: new BABYLON.Vector3(0, 0, 0),
             },
           ];
           currentRotationAnimSetting.setKeys(rotationKeys);
@@ -120,7 +234,7 @@
           const currentPositionAnimSetting = new BABYLON.Animation(
             "positionAnim",
             "position",
-            15,
+            100,
             BABYLON.Animation.ANIMATIONTYPE_VECTOR3,
             BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE
           );
@@ -131,11 +245,11 @@
               value: box.position,
             },
             {
-              frame: 7,
-              value: targetTransform.position,
+              frame: 50,
+              value: new BABYLON.Vector3(0, 0, -1.5),
             },
             {
-              frame: 15,
+              frame: 100,
               value: new BABYLON.Vector3(0, 0, 0),
             },
           ];
@@ -145,44 +259,63 @@
           box.animations.push(currentRotationAnimSetting);
           box.animations.push(currentPositionAnimSetting);
 
-          currentAnim = scene.beginAnimation(box, 0, 15, false);
+          currentAnim = scene.beginAnimation(box, 0, 100, false);
+
+          timer = setTimeout(() => {
+            randomAnim();
+          }, 1500);
         };
 
-        setInterval(() => {
-          targetTransform.rotation = new BABYLON.Vector3(
-            Math.random() * 2 - 1,
-            Math.random() * 2 - 1,
-            Math.random() * 2 - 1
-          );
-          execAnim();
-        }, 1000);
-
-        box.actionManager = new BABYLON.ActionManager(scene);
-        box.actionManager.registerAction(
-          new BABYLON.ExecuteCodeAction(
-            BABYLON.ActionManager.OnPointerOverTrigger,
-            (ev) => {
-              scene.hoverCursor = "pointer";
-              console.log("hover");
-              targetTransform.position = new BABYLON.Vector3(0, 0, -1);
-
-              setTimeout(() => {
-                targetTransform.position = new BABYLON.Vector3(0, 0, 0);
-              }, 1000);
-            }
-          )
-        );
-
-        return scene;
+        return {
+          scene,
+          randomAnim,
+          spinAnim,
+        };
       })();
 
       engine.runRenderLoop(function () {
-        scene.render();
+        core.scene.render();
       });
 
       window.addEventListener("resize", function () {
         engine.resize();
       });
+
+      const swiper = new Swiper(".swiper", {
+        // Optional parameters
+        loop: true,
+        speed: 600,
+
+        // If we need pagination
+        pagination: {
+          el: ".swiper-pagination",
+        },
+
+        // Navigation arrows
+        navigation: {
+          nextEl: ".swiper-button-next",
+          prevEl: ".swiper-button-prev",
+        },
+
+        // And if we need scrollbar
+        scrollbar: {
+          el: ".swiper-scrollbar",
+        },
+      });
+
+      swiper.on("slideNextTransitionStart", function () {
+        console.log("slideNextTransitionStart");
+        core.spinAnim(true);
+      });
+
+      swiper.on("slidePrevTransitionStart", function () {
+        console.log("slidePrevTransitionStart");
+        core.spinAnim(false);
+      });
+
+      setTimeout(() => {
+        core.randomAnim();
+      }, 0);
     </script>
   </body>
 </html>
